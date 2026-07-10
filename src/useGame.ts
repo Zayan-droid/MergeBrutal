@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { GridData } from './types';
 import { createEmptyGrid, generateNextTile, getConnected, isGridFull } from './gameLogic';
 import { sfx } from './audio';
@@ -17,9 +17,22 @@ const EMPTY_FX: FxState = { placed: null, merged: null, removed: null, invalid: 
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+const BEST_KEY = 'brutalist-merge-best';
+
+const readBest = (): number => {
+  try {
+    const v = Number(localStorage.getItem(BEST_KEY));
+    return Number.isFinite(v) && v > 0 ? Math.floor(v) : 0;
+  } catch {
+    return 0;
+  }
+};
+
 export const useGame = () => {
   const [grid, setGrid] = useState<GridData>(createEmptyGrid());
   const [score, setScore] = useState(0);
+  const [best, setBest] = useState(readBest);
+  const [newBest, setNewBest] = useState(false); // this run beat the stored best
   const [highestTier, setHighestTier] = useState(1);
   const [nextTile, setNextTile] = useState(1);
   const [gameOver, setGameOver] = useState(false);
@@ -33,6 +46,19 @@ export const useGame = () => {
   const epochRef = useRef(0); // invalidates in-flight cascades on restart
 
   const nextN = () => ++fxCounter.current;
+
+  // Track the best score live so the header updates the moment it's beaten.
+  useEffect(() => {
+    if (score > best) {
+      setBest(score);
+      setNewBest(true);
+      try {
+        localStorage.setItem(BEST_KEY, String(score));
+      } catch {
+        // storage unavailable — best lasts this session only
+      }
+    }
+  }, [score, best]);
 
   const triggerShake = () => {
     setShake(true);
@@ -119,6 +145,7 @@ export const useGame = () => {
     setPaused(false);
     setGrid(createEmptyGrid());
     setScore(0);
+    setNewBest(false);
     setHighestTier(1);
     setNextTile(1);
     setGameOver(false);
@@ -131,6 +158,8 @@ export const useGame = () => {
   return {
     grid,
     score,
+    best,
+    newBest,
     nextTile,
     gameOver,
     shake,

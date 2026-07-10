@@ -33,8 +33,8 @@ DEAD.
 - **Splash screen** — looping gameplay render with the title stamping in.
 - **Mobile-first** — fluid grid that scales to any viewport, no tap delay,
   no pull-to-refresh, no tap highlight.
-- Sound preference persists in `localStorage`; audio unlocks on the first
-  tap, never before.
+- Sound preference and best score persist in `localStorage`; audio unlocks
+  on the first tap, never before.
 
 ## Tech
 

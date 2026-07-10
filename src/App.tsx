@@ -56,7 +56,7 @@ const cellFx = (fx: FxState, key: string): CellAnim => {
 };
 
 export default function App() {
-  const { grid, score, nextTile, gameOver, shake, fx, drawId, paused, togglePause, placeTile, restartGame } = useGame();
+  const { grid, score, best, newBest, nextTile, gameOver, shake, fx, drawId, paused, togglePause, placeTile, restartGame } = useGame();
   const [soundOn, setSoundOn] = useState(sfx.isEnabled());
   const [started, setStarted] = useState(false);
 
@@ -91,10 +91,15 @@ export default function App() {
             <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Brutal</h1>
           </div>
 
-          <div className="flex gap-4 sm:gap-10">
+          <div className="flex gap-3 sm:gap-8">
             <div className="flex flex-col items-center">
               <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Score</span>
               <span key={score} className="text-2xl sm:text-4xl font-black inline-block fx-score">{score}</span>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Best</span>
+              <span key={best} className="text-2xl sm:text-4xl font-black inline-block fx-score">{best}</span>
             </div>
 
             <div className="flex flex-col items-center">
@@ -202,9 +207,18 @@ export default function App() {
             <h2 className="text-6xl sm:text-8xl font-black text-white uppercase tracking-tighter mb-4 shadow-black drop-shadow-[8px_8px_0px_rgba(0,0,0,1)] fx-slam">
               Dead
             </h2>
-            <p className="text-xl sm:text-3xl text-white font-bold mb-6 sm:mb-8 bg-black px-4 py-2 border-4 border-white">
+            <p className="text-xl sm:text-3xl text-white font-bold mb-3 bg-black px-4 py-2 border-4 border-white">
               Final Score: {score}
             </p>
+            {newBest && score > 0 ? (
+              <p className="fx-slam text-base sm:text-xl font-black uppercase tracking-widest text-black bg-yellow-400 px-3 py-1 border-4 border-black mb-6 sm:mb-8">
+                New Best
+              </p>
+            ) : (
+              <p className="text-base sm:text-xl font-bold text-white bg-black px-3 py-1 border-4 border-white mb-6 sm:mb-8">
+                Best: {best}
+              </p>
+            )}
             <button
               onClick={restartGame}
               className="border-4 border-black bg-white hover:bg-gray-200 text-black px-6 py-3 text-xl sm:px-10 sm:py-4 sm:text-3xl font-black uppercase shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-y-2 active:translate-x-2 transition-all"
