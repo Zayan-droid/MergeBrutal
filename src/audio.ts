@@ -30,7 +30,7 @@ const ensure = (): AudioContext | null => {
     if (!AC) return null;
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = 0.5; // conservative overall level
+    master.gain.value = 0.7; // punchy but not blasting
     master.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.3), ctx.sampleRate);
     const data = noiseBuf.getChannelData(0);
@@ -131,7 +131,7 @@ const place = () => {
   if (!enabled || !ensure()) return;
   tone({ type: 'triangle', from: 210, to: 150, glideMs: 40, peak: 0.2, decayMs: 50 });
   noise({ peak: 0.06, decayMs: 25, lowpass: 1800 });
-  vibrate(8);
+  vibrate(12);
 };
 
 /**
@@ -155,7 +155,7 @@ const merge = (tier: number, combo: number) => {
   if (combo >= 2) {
     tone({ type: 'square', from: 1100 + 160 * step, peak: 0.05, decayMs: 30, at: 0.07 });
   }
-  vibrate(Math.min(15 + 6 * step, 40));
+  vibrate(Math.min(22 + 8 * step, 60));
 };
 
 /** Clicking an occupied cell: dull muted tick. */
@@ -163,7 +163,7 @@ const invalid = () => {
   if (!enabled || !ensure()) return;
   tone({ type: 'triangle', from: 90, peak: 0.11, decayMs: 40 });
   noise({ peak: 0.04, decayMs: 25, lowpass: 400 });
-  vibrate(10);
+  vibrate(14);
 };
 
 /** Grid full: harsh low dead thud, offset a beat past the final merge. */
@@ -172,7 +172,7 @@ const gameOver = () => {
   tone({ type: 'sawtooth', from: 110, to: 42, glideMs: 300, peak: 0.26, decayMs: 380, lowpass: 900, at: 0.12 });
   tone({ type: 'sawtooth', from: 116, to: 45, glideMs: 300, peak: 0.16, decayMs: 380, lowpass: 700, at: 0.12 });
   noise({ peak: 0.12, decayMs: 120, lowpass: 500, at: 0.12 });
-  vibrate([70, 60, 140]);
+  vibrate([90, 70, 180]);
 };
 
 const setEnabled = (v: boolean) => {

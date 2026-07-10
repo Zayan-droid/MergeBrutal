@@ -190,6 +190,25 @@ body {
   animation: fx-slam 120ms steps(2, end);
 }
 
+/* Splash reveal: title panel and play button stamp in hard, the button
+   half a beat behind the title. */
+@keyframes fx-reveal {
+  from {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.fx-reveal {
+  animation: fx-reveal 180ms steps(3, end) both;
+}
+.fx-reveal-btn {
+  animation: fx-reveal 180ms steps(3, end) 150ms both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fx-pop,
   .fx-merge,
@@ -199,6 +218,8 @@ body {
   .fx-score,
   .fx-dead,
   .fx-slam,
+  .fx-reveal,
+  .fx-reveal-btn,
   .animate-shake {
     animation: none;
   }

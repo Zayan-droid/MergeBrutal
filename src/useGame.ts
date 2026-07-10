@@ -27,6 +27,8 @@ export const useGame = () => {
   const [shake, setShake] = useState(false);
   const [fx, setFx] = useState<FxState>(EMPTY_FX);
   const [drawId, setDrawId] = useState(0); // bumps whenever a new next tile is drawn
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false); // mirrors `paused` for the async cascade loop
   const fxCounter = useRef(0);
   const epochRef = useRef(0); // invalidates in-flight cascades on restart
 
@@ -37,8 +39,13 @@ export const useGame = () => {
     setTimeout(() => setShake(false), 500);
   };
 
+  const togglePause = useCallback(() => {
+    pausedRef.current = !pausedRef.current;
+    setPaused(pausedRef.current);
+  }, []);
+
   const placeTile = useCallback(async (r: number, c: number) => {
-    if (gameOver || isProcessing) return;
+    if (gameOver || isProcessing || pausedRef.current) return;
     if (grid[r][c] !== null) {
       setFx(f => ({ ...f, invalid: { cell: `${r},${c}`, n: nextN() } }));
       sfx.invalid();
@@ -71,6 +78,10 @@ export const useGame = () => {
       setFx(f => ({ ...f, removed: { cells: doomed, n: nextN() } }));
 
       await sleep(200);
+      // Hold the cascade while paused so merges (and their sounds) wait.
+      while (pausedRef.current && epochRef.current === epoch) {
+        await sleep(100);
+      }
       if (epochRef.current !== epoch) return; // restarted mid-cascade
 
       for (const cell of connected) {
@@ -104,6 +115,8 @@ export const useGame = () => {
 
   const restartGame = () => {
     epochRef.current++;
+    pausedRef.current = false;
+    setPaused(false);
     setGrid(createEmptyGrid());
     setScore(0);
     setHighestTier(1);
@@ -123,6 +136,8 @@ export const useGame = () => {
     shake,
     fx,
     drawId,
+    paused,
+    togglePause,
     placeTile,
     restartGame,
   };

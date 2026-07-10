@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame, FxState } from './useGame';
 import { getTierStyle, CellValue, ROWS, COLS } from './types';
 import { sfx } from './audio';
+import Splash from './Splash';
 
 const Tile = ({ value, isNext = false }: { value: CellValue; isNext?: boolean }) => {
   const isFilled = value !== null;
@@ -55,8 +56,9 @@ const cellFx = (fx: FxState, key: string): CellAnim => {
 };
 
 export default function App() {
-  const { grid, score, nextTile, gameOver, shake, fx, drawId, placeTile, restartGame } = useGame();
+  const { grid, score, nextTile, gameOver, shake, fx, drawId, paused, togglePause, placeTile, restartGame } = useGame();
   const [soundOn, setSoundOn] = useState(sfx.isEnabled());
+  const [started, setStarted] = useState(false);
 
   const toggleSound = () => {
     const next = !soundOn;
@@ -64,6 +66,19 @@ export default function App() {
     sfx.setEnabled(next);
     if (next) sfx.place(); // audible confirmation + unlocks the audio context
   };
+
+  const startGame = () => {
+    sfx.place(); // user gesture — unlocks the audio context
+    setStarted(true);
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && started && !gameOver) togglePause();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [started, gameOver, togglePause]);
 
   return (
     <div className={`min-h-dvh bg-gray-100 flex items-center justify-center p-2 sm:p-4 font-mono select-none touch-manipulation ${shake ? 'animate-shake' : ''}`}>
@@ -90,18 +105,14 @@ export default function App() {
             </div>
 
             <button
-              onClick={toggleSound}
-              aria-pressed={soundOn}
-              title="Toggle sound & haptics"
+              onClick={togglePause}
+              aria-label="Pause"
+              title="Pause (Esc)"
               className="flex flex-col items-center cursor-pointer"
             >
-              <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Sound</span>
-              <span
-                className={`w-12 h-12 sm:w-20 sm:h-20 flex items-center justify-center border-2 sm:border-4 border-black text-sm sm:text-xl font-black uppercase ${
-                  soundOn ? 'bg-white hover:bg-gray-200' : 'bg-black text-white'
-                }`}
-              >
-                {soundOn ? 'On' : 'Off'}
+              <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Menu</span>
+              <span className="w-12 h-12 sm:w-20 sm:h-20 flex items-center justify-center border-2 sm:border-4 border-black text-xl sm:text-3xl font-black bg-white hover:bg-gray-200 tracking-tighter">
+                II
               </span>
             </button>
           </div>
@@ -155,6 +166,36 @@ export default function App() {
           </button>
         </div>
 
+        {/* Pause Menu Overlay */}
+        {paused && !gameOver && (
+          <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center border-4 sm:border-8 border-black z-30 p-4 sm:p-6 text-center fx-dead">
+            <h2 className="text-5xl sm:text-7xl font-black uppercase tracking-tighter mb-6 sm:mb-10 fx-slam">
+              Paused
+            </h2>
+            <div className="flex flex-col gap-3 sm:gap-4 w-full max-w-[260px] sm:max-w-xs">
+              <button
+                onClick={togglePause}
+                className="border-4 border-black bg-yellow-400 hover:bg-yellow-300 text-black px-6 py-2.5 sm:py-3 text-lg sm:text-2xl font-black uppercase tracking-widest shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1.5 active:translate-y-1.5 transition-all"
+              >
+                Resume
+              </button>
+              <button
+                onClick={toggleSound}
+                aria-pressed={soundOn}
+                className="border-4 border-black bg-white hover:bg-gray-200 text-black px-6 py-2.5 sm:py-3 text-lg sm:text-2xl font-black uppercase tracking-widest shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1.5 active:translate-y-1.5 transition-all"
+              >
+                Sound: {soundOn ? 'On' : 'Off'}
+              </button>
+              <button
+                onClick={restartGame}
+                className="border-4 border-black bg-white hover:bg-gray-200 text-black px-6 py-2.5 sm:py-3 text-lg sm:text-2xl font-black uppercase tracking-widest shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1.5 active:translate-y-1.5 transition-all"
+              >
+                Restart
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Game Over Overlay */}
         {gameOver && (
           <div className="absolute inset-0 bg-red-600/90 flex flex-col items-center justify-center border-4 sm:border-8 border-black z-20 p-4 sm:p-6 text-center fx-dead">
@@ -174,6 +215,9 @@ export default function App() {
         )}
 
       </div>
+
+      {/* Splash Screen */}
+      {!started && <Splash onPlay={startGame} />}
     </div>
   );
 }
