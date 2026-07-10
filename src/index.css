@@ -209,6 +209,22 @@ body {
   animation: fx-reveal 180ms steps(3, end) 150ms both;
 }
 
+/* Backdrop veil behind the splash title: the video and edge tiles
+   defocus in hard steps as the title stamps in. */
+@keyframes fx-veil {
+  from {
+    -webkit-backdrop-filter: blur(0px);
+    backdrop-filter: blur(0px);
+  }
+  to {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+.fx-veil {
+  animation: fx-veil 240ms steps(3, end) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fx-pop,
   .fx-merge,
@@ -220,7 +236,14 @@ body {
   .fx-slam,
   .fx-reveal,
   .fx-reveal-btn,
+  .fx-veil,
   .animate-shake {
     animation: none;
+  }
+
+  /* Keep the veil's end state: blur isn't motion. */
+  .fx-veil {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
 }

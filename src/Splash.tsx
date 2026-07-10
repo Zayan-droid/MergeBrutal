@@ -50,7 +50,7 @@ export default function Splash({ onPlay }: { onPlay: () => void }) {
       ))}
 
       {revealed && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 sm:gap-10 p-4">
+        <div className="fx-veil absolute inset-0 flex flex-col items-center justify-center gap-6 sm:gap-10 p-4">
           <div className="fx-reveal bg-white border-4 sm:border-8 border-black px-8 py-5 sm:px-12 sm:py-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] text-center">
             <h1 className="text-5xl sm:text-7xl font-black uppercase tracking-tighter leading-none">Merge</h1>
             <h1 className="text-5xl sm:text-7xl font-black uppercase tracking-tighter leading-none">Brutal</h1>
