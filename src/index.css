@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-shake: shake 0.3s linear both;
+
+  @keyframes shake {
+    0%, 100% {
+      transform: translate(0, 0);
+    }
+
+    15% {
+      transform: translate(-7px, 2px);
+    }
+
+    35% {
+      transform: translate(6px, -3px);
+    }
+
+    55% {
+      transform: translate(-5px, 2px);
+    }
+
+    75% {
+      transform: translate(4px, -2px);
+    }
+
+    90% {
+      transform: translate(-2px, 1px);
+    }
+  }
+}
+
+/* Touch behavior: no gray tap flash, no pull-to-refresh while playing. */
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* One-shot FX. Animated tiles are remounted with a fresh key so the
+   animation restarts reliably; steps() easing keeps motion mechanical. */
+
+/* Tile placement / next-tile draw: small hard pop, no bounce. */
+@keyframes fx-pop {
+  from {
+    transform: scale(0.92);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.fx-pop {
+  animation: fx-pop 100ms cubic-bezier(0.2, 0, 0.4, 1);
+}
+
+/* Merge impact: brief punch plus a thin black outline that hard-cuts off.
+   --fx-punch scales up slightly with combo level. */
+@keyframes fx-merge {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(var(--fx-punch, 1.08));
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes fx-outline-black {
+  from {
+    outline-color: #000;
+  }
+  to {
+    outline-color: transparent;
+  }
+}
+.fx-merge {
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+  animation:
+    fx-merge 150ms cubic-bezier(0.3, 0, 0.5, 1),
+    fx-outline-black 150ms steps(1, end);
+}
+
+/* Doomed tiles: dim and shrink slightly during the pre-merge beat. */
+@keyframes fx-remove {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.88);
+    opacity: 0.45;
+  }
+}
+.fx-remove {
+  animation: fx-remove 160ms steps(2, end) forwards;
+}
+
+/* Invalid click: tiny horizontal shake with a red outline flash. */
+@keyframes fx-invalid {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(-3px);
+  }
+  70% {
+    transform: translateX(3px);
+  }
+}
+@keyframes fx-outline-red {
+  from {
+    outline-color: #dc2626;
+  }
+  to {
+    outline-color: transparent;
+  }
+}
+.fx-invalid {
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+  animation:
+    fx-invalid 110ms linear,
+    fx-outline-red 110ms steps(1, end);
+}
+
+/* Combo chip: stamped on, gone quickly. Base opacity is 0 so it also
+   stays hidden when animations are disabled. */
+@keyframes fx-combo {
+  0% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+.fx-combo {
+  animation: fx-combo 450ms steps(5, end) forwards;
+}
+
+/* Score bump: quick vertical nudge, typography untouched. */
+@keyframes fx-score {
+  0% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.fx-score {
+  animation: fx-score 130ms cubic-bezier(0.3, 0, 0.7, 1);
+}
+
+/* DEAD overlay: hard stepped opacity cut, no cinematic fade. */
+@keyframes fx-dead {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fx-dead {
+  animation: fx-dead 140ms steps(2, end);
+}
+
+/* DEAD headline slams down to size. */
+@keyframes fx-slam {
+  from {
+    transform: scale(1.25);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.fx-slam {
+  animation: fx-slam 120ms steps(2, end);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-pop,
+  .fx-merge,
+  .fx-remove,
+  .fx-invalid,
+  .fx-combo,
+  .fx-score,
+  .fx-dead,
+  .fx-slam,
+  .animate-shake {
+    animation: none;
+  }
+}
