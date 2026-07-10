@@ -5,9 +5,20 @@
 
 import React, { useEffect, useState } from 'react';
 
-// Full-screen intro: looping background video, a frosted block hiding the
-// AI watermark in the bottom-right corner, and the title + play button
-// stamping in after a 3 second hold.
+// Decorative game tiles scattered around the splash edges. The green "4"
+// is sized and pinned so it always covers the AI watermark that sits at
+// ~76-97% width / ~88-93% height on tall screens (wide screens crop the
+// watermark out of the object-cover frame entirely).
+const DECOR_TILES = [
+  { label: '1', cls: 'w-14 sm:w-24 top-[7%] left-[5%] -rotate-6 bg-red-600 text-white text-2xl sm:text-4xl' },
+  { label: '2', cls: 'w-12 sm:w-20 top-[13%] right-[7%] rotate-6 bg-blue-600 text-white text-xl sm:text-3xl' },
+  { label: '3', cls: 'w-14 sm:w-24 bottom-[12%] left-[6%] rotate-3 bg-yellow-400 text-black text-2xl sm:text-4xl' },
+  { label: '4', cls: 'w-[26%] max-w-[140px] bottom-[5%] right-0 -rotate-3 bg-green-600 text-white text-3xl sm:text-5xl' },
+] as const;
+
+// Full-screen intro: looping background video, game tiles on the edges
+// (one hiding the AI watermark), and the title + play button stamping in
+// after a 3 second hold.
 export default function Splash({ onPlay }: { onPlay: () => void }) {
   const [revealed, setRevealed] = useState(false);
 
@@ -27,8 +38,16 @@ export default function Splash({ onPlay }: { onPlay: () => void }) {
         className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* Frosted block over the AI watermark in the bottom-right corner */}
-      <div className="absolute bottom-0 right-0 w-[30%] max-w-[220px] h-[15%] max-h-[190px] backdrop-blur-2xl bg-white/30" />
+      {/* Game tiles on the edges; the green 4 covers the AI watermark */}
+      {DECOR_TILES.map(t => (
+        <div
+          key={t.label}
+          aria-hidden="true"
+          className={`absolute aspect-square border-4 border-black flex items-center justify-center font-black font-mono shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] ${t.cls}`}
+        >
+          {t.label}
+        </div>
+      ))}
 
       {revealed && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 sm:gap-10 p-4">
