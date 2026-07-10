@@ -1,5 +1,5 @@
 {
-  "name": "Brutalist Merge",
+  "name": "Merge Brutal",
   "description": "A stark, no-nonsense 2D three-way merge game focused purely on grid logic and cascade satisfaction.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
