@@ -9,7 +9,7 @@ import { getTierStyle, CellValue, ROWS, COLS } from './types';
 import { sfx } from './audio';
 import Splash from './Splash';
 
-const Tile = ({ value, isNext = false }: { value: CellValue; isNext?: boolean }) => {
+const Tile = ({ value }: { value: CellValue }) => {
   const isFilled = value !== null;
   const styleClass = getTierStyle(value);
 
@@ -19,7 +19,6 @@ const Tile = ({ value, isNext = false }: { value: CellValue; isNext?: boolean })
         w-full aspect-square flex items-center justify-center
         text-[clamp(1rem,6vw,2.25rem)] font-black font-mono border-2 sm:border-4 border-black select-none
         ${isFilled ? styleClass : 'bg-white hover:bg-gray-200 cursor-pointer'}
-        ${isNext ? 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sm:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]' : ''}
         transition-colors duration-75
       `}
     >
@@ -27,6 +26,31 @@ const Tile = ({ value, isNext = false }: { value: CellValue; isNext?: boolean })
     </div>
   );
 };
+
+// A hard-bordered instrument tile for the header readout strip. The label sits
+// in a solid bar above the value — a control-panel look that suits the theme.
+const Stat = ({
+  label,
+  highlight = false,
+  children,
+}: {
+  label: string;
+  highlight?: boolean;
+  children: React.ReactNode;
+}) => (
+  <div className="border-2 sm:border-4 border-black bg-white flex flex-col overflow-hidden">
+    <div
+      className={`text-[10px] sm:text-sm font-black uppercase tracking-wider text-center leading-none py-1 sm:py-1.5 border-b-2 sm:border-b-4 border-black ${
+        highlight ? 'bg-yellow-400 text-black' : 'bg-black text-white'
+      }`}
+    >
+      {label}
+    </div>
+    <div className="flex-1 flex items-center justify-center p-1 sm:p-1.5 min-h-[2.75rem] sm:min-h-[4rem]">
+      {children}
+    </div>
+  </div>
+);
 
 interface CellAnim {
   n: number;
@@ -56,7 +80,10 @@ const cellFx = (fx: FxState, key: string): CellAnim => {
 };
 
 export default function App() {
-  const { grid, score, best, newBest, nextTile, gameOver, shake, fx, drawId, paused, togglePause, placeTile, restartGame } = useGame();
+  const {
+    grid, score, best, newBest, highestTier, nextTile, gameOver,
+    shake, danger, fx, drawId, paused, togglePause, placeTile, restartGame,
+  } = useGame();
   const [soundOn, setSoundOn] = useState(sfx.isEnabled());
   const [started, setStarted] = useState(false);
 
@@ -69,6 +96,7 @@ export default function App() {
 
   const startGame = () => {
     sfx.place(); // user gesture — unlocks the audio context
+    sfx.primeVoice(); // same gesture — unlocks voice cheers (iOS-safe)
     setStarted(true);
   };
 
@@ -80,86 +108,131 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [started, gameOver, togglePause]);
 
+  const shakeCls = shake ? (shake.level === 'hard' ? 'animate-shake' : 'animate-shake-soft') : '';
+
   return (
-    <div className={`min-h-dvh bg-gray-100 flex items-center justify-center p-2 sm:p-4 font-mono select-none touch-manipulation ${shake ? 'animate-shake' : ''}`}>
+    <div className={`min-h-dvh bg-gray-100 flex items-center justify-center p-2 sm:p-4 font-mono select-none touch-manipulation ${shakeCls}`}>
       <div className="bg-white border-4 sm:border-8 border-black p-3 sm:p-6 max-w-3xl w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] relative">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-8 border-b-4 sm:border-b-8 border-black pb-4 sm:pb-6 gap-3 sm:gap-6">
-          <div className="flex gap-2 sm:block">
-            <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Merge</h1>
-            <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Brutal</h1>
-          </div>
-
-          <div className="flex gap-3 sm:gap-8">
-            <div className="flex flex-col items-center">
-              <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Score</span>
-              <span key={score} className="text-2xl sm:text-4xl font-black inline-block fx-score">{score}</span>
+        {/* Header / control panel */}
+        <div className="mb-4 sm:mb-6 border-b-4 sm:border-b-8 border-black pb-4 sm:pb-6">
+          <div className="flex justify-between items-start gap-3 mb-3 sm:mb-5">
+            <div className="leading-[0.82]">
+              <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Merge</h1>
+              <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Brutal</h1>
+              <p className="mt-1.5 text-[9px] sm:text-xs font-bold uppercase tracking-[0.35em] text-black/55">6×6 · Collapse</p>
             </div>
-
-            <div className="flex flex-col items-center">
-              <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Best</span>
-              <span key={best} className="text-2xl sm:text-4xl font-black inline-block fx-score">{best}</span>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Next</span>
-              <div key={drawId} className="fx-pop w-12 sm:w-20">
-                <Tile value={nextTile} isNext />
-              </div>
-            </div>
-
             <button
               onClick={togglePause}
               aria-label="Pause"
               title="Pause (Esc)"
-              className="flex flex-col items-center cursor-pointer"
+              className="shrink-0 w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center border-2 sm:border-4 border-black text-lg sm:text-2xl font-black bg-white hover:bg-gray-200 active:bg-yellow-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all tracking-tighter"
             >
-              <span className="text-sm sm:text-xl font-bold uppercase mb-1 sm:mb-2 border-b-2 sm:border-b-4 border-black">Menu</span>
-              <span className="w-12 h-12 sm:w-20 sm:h-20 flex items-center justify-center border-2 sm:border-4 border-black text-xl sm:text-3xl font-black bg-white hover:bg-gray-200 tracking-tighter">
-                II
-              </span>
+              II
             </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+            <Stat label="Score">
+              <span key={score} className="fx-score text-lg sm:text-3xl font-black tabular-nums tracking-tighter">{score}</span>
+            </Stat>
+            <Stat label="Best">
+              <span key={best} className="fx-score text-lg sm:text-3xl font-black tabular-nums tracking-tighter">{best}</span>
+            </Stat>
+            <Stat label="Tier">
+              <span
+                key={highestTier}
+                className={`fx-slam w-8 h-8 sm:w-11 sm:h-11 flex items-center justify-center border-2 border-black font-black text-base sm:text-2xl ${getTierStyle(highestTier)}`}
+              >
+                {highestTier}
+              </span>
+            </Stat>
+            <Stat label="Next" highlight>
+              <div key={drawId} className="fx-pop w-10 sm:w-14">
+                <Tile value={nextTile} />
+              </div>
+            </Stat>
           </div>
         </div>
 
         {/* Game Grid */}
         <div className="flex justify-center mb-4 sm:mb-8">
-          <div
-            className="grid w-full max-w-[564px] gap-1 sm:gap-3 bg-black p-1 sm:p-3"
-            style={{
-              gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
-              gridTemplateRows: `repeat(${ROWS}, minmax(0, 1fr))`
-            }}
-          >
-            {grid.map((row, r) =>
-              row.map((cell, c) => {
-                const key = `${r},${c}`;
-                const anim = cellFx(fx, key);
-                const punch = anim.combo !== undefined ? Math.min(1.06 + 0.02 * anim.combo, 1.14) : undefined;
-                return (
-                  <div key={`${r}-${c}`} className="relative" onClick={() => placeTile(r, c)}>
-                    <div
-                      key={anim.k}
-                      className={anim.cls}
-                      style={punch !== undefined ? ({ '--fx-punch': punch } as React.CSSProperties) : undefined}
-                    >
-                      <Tile value={cell} />
-                    </div>
-                    {anim.combo !== undefined && anim.combo >= 2 && (
-                      <span
-                        key={`chip-${anim.k}`}
-                        className="fx-combo absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 z-10 bg-white border-2 border-black px-0.5 sm:px-1 text-[10px] sm:text-xs font-black text-black pointer-events-none opacity-0"
+          <div className="relative w-full max-w-[564px]">
+            <div
+              className="grid w-full gap-1 sm:gap-3 bg-black p-1 sm:p-3"
+              style={{
+                gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${ROWS}, minmax(0, 1fr))`
+              }}
+            >
+              {grid.map((row, r) =>
+                row.map((cell, c) => {
+                  const key = `${r},${c}`;
+                  const anim = cellFx(fx, key);
+                  const punch = anim.combo !== undefined ? Math.min(1.06 + 0.02 * anim.combo, 1.14) : undefined;
+                  return (
+                    <div key={`${r}-${c}`} className="relative" onClick={() => placeTile(r, c)}>
+                      <div
+                        key={anim.k}
+                        className={anim.cls}
+                        style={punch !== undefined ? ({ '--fx-punch': punch } as React.CSSProperties) : undefined}
                       >
-                        ×{anim.combo}
-                      </span>
-                    )}
-                  </div>
-                );
-              })
+                        <Tile value={cell} />
+                      </div>
+                      {anim.combo !== undefined && anim.combo >= 2 && (
+                        <span
+                          key={`chip-${anim.k}`}
+                          className="fx-combo absolute -top-2 -right-2 sm:-top-3 sm:-right-3 z-20 bg-yellow-400 border-2 sm:border-[3px] border-black px-1 sm:px-1.5 text-xs sm:text-base font-black text-black pointer-events-none opacity-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                        >
+                          ×{anim.combo}
+                        </span>
+                      )}
+                      {fx.score && fx.score.cell === key && (
+                        <span
+                          key={`sf-${fx.score.n}`}
+                          aria-hidden="true"
+                          className="fx-score-float absolute left-1/2 -top-1 z-30 whitespace-nowrap bg-black text-white font-black font-mono text-[10px] sm:text-sm px-1 sm:px-1.5 border border-white opacity-0"
+                        >
+                          +{fx.score.amount}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* New-tier flash over the whole board */}
+            {fx.tierUp && (
+              <div
+                key={`tf-${fx.tierUp.n}`}
+                aria-hidden="true"
+                className="fx-tierflash pointer-events-none absolute inset-0 z-20"
+              />
+            )}
+
+            {/* Danger ring: only a few cells left */}
+            {danger && (
+              <div
+                aria-hidden="true"
+                className="danger-ring pointer-events-none absolute inset-0 z-20"
+              />
             )}
           </div>
         </div>
+
+        {/* Small-win celebration stamp — brutalist, over the board, click-through */}
+        {fx.cheer && (
+          <div
+            key={`cheer-${fx.cheer.n}`}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex justify-center"
+          >
+            <span className="fx-cheer opacity-0 inline-block bg-yellow-400 border-4 sm:border-8 border-black text-black font-black font-mono uppercase tracking-tighter text-4xl sm:text-7xl px-4 py-2 sm:px-8 sm:py-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+              {fx.cheer.word}
+            </span>
+          </div>
+        )}
 
         {/* Footer / Controls */}
         <div className="flex justify-center">

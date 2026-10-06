@@ -2,6 +2,7 @@
 
 @theme {
   --animate-shake: shake 0.3s linear both;
+  --animate-shake-soft: shake-soft 0.25s steps(2, end) both;
 
   @keyframes shake {
     0%, 100% {
@@ -26,6 +27,25 @@
 
     90% {
       transform: translate(-2px, 1px);
+    }
+  }
+
+  /* Combo kick: shorter, harder, no drift back — reserved for deep chains. */
+  @keyframes shake-soft {
+    0%, 100% {
+      transform: translate(0, 0);
+    }
+
+    25% {
+      transform: translate(-4px, 2px);
+    }
+
+    50% {
+      transform: translate(4px, -2px);
+    }
+
+    75% {
+      transform: translate(-3px, 1px);
     }
   }
 }
@@ -81,19 +101,28 @@ body {
     fx-outline-black 150ms steps(1, end);
 }
 
-/* Doomed tiles: dim and shrink slightly during the pre-merge beat. */
+/* Doomed tiles: flicker hard, then dim and shrink during the pre-merge beat —
+   a sharper "about to collapse" telegraph than a plain fade. */
 @keyframes fx-remove {
-  from {
+  0% {
     transform: scale(1);
     opacity: 1;
   }
-  to {
-    transform: scale(0.88);
-    opacity: 0.45;
+  33% {
+    transform: scale(0.96);
+    opacity: 0.3;
+  }
+  66% {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(0.84);
+    opacity: 0.4;
   }
 }
 .fx-remove {
-  animation: fx-remove 160ms steps(2, end) forwards;
+  animation: fx-remove 180ms steps(3, end) forwards;
 }
 
 /* Invalid click: tiny horizontal shake with a red outline flash. */
@@ -164,6 +193,87 @@ body {
   animation: fx-score 130ms cubic-bezier(0.3, 0, 0.7, 1);
 }
 
+/* Small-win stamp: slams in oversized, holds, then hard-cuts out. Base
+   opacity is 0 so it stays hidden when animations are disabled. The slight
+   tilt is baked into every frame so it never wobbles. */
+@keyframes fx-cheer {
+  0% {
+    opacity: 0;
+    transform: scale(1.45) rotate(-3deg);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) rotate(-3deg);
+  }
+}
+.fx-cheer {
+  animation: fx-cheer 850ms steps(4, end) forwards;
+}
+
+/* Floating "+score": stamps up out of the merged tile and hard-cuts out.
+   X is pinned at -50% so it stays centered without a Tailwind transform. */
+@keyframes fx-score-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 2px) scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -3px) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -16px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -28px) scale(1);
+  }
+}
+.fx-score-float {
+  animation: fx-score-float 680ms steps(5, end) forwards;
+}
+
+/* New-tier flash: one hard white/black ring pulse across the board. */
+@keyframes fx-tierflash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.fx-tierflash {
+  box-shadow:
+    inset 0 0 0 5px #fff,
+    inset 0 0 0 10px #000;
+  animation: fx-tierflash 240ms steps(2, end) forwards;
+}
+
+/* Danger ring: the board frame blinks red once only a few cells remain. The
+   floor stays high enough that the warning never fully disappears. */
+@keyframes danger-ring {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.danger-ring {
+  box-shadow: inset 0 0 0 6px #dc2626;
+  animation: danger-ring 720ms steps(2, end) infinite;
+}
+
 /* DEAD overlay: hard stepped opacity cut, no cinematic fade. */
 @keyframes fx-dead {
   from {
@@ -231,13 +341,18 @@ body {
   .fx-remove,
   .fx-invalid,
   .fx-combo,
+  .fx-cheer,
   .fx-score,
+  .fx-score-float,
+  .fx-tierflash,
   .fx-dead,
   .fx-slam,
   .fx-reveal,
   .fx-reveal-btn,
   .fx-veil,
-  .animate-shake {
+  .danger-ring,
+  .animate-shake,
+  .animate-shake-soft {
     animation: none;
   }
 
@@ -245,5 +360,15 @@ body {
   .fx-veil {
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+  }
+
+  /* Doomed tiles still need to read as doomed without the flicker. */
+  .fx-remove {
+    opacity: 0.4;
+  }
+
+  /* Keep the danger ring visible as a static warning, just not pulsing. */
+  .danger-ring {
+    opacity: 1;
   }
 }
