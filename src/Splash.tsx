@@ -17,18 +17,24 @@ const DECOR_TILES = [
 ] as const;
 
 // Full-screen intro: looping background video, game tiles on the edges
-// (one hiding the AI watermark), and the title + play button stamping in
-// after a 3 second hold.
+// (one hiding the AI watermark), and the title + play button stamping in.
+// The reveal lands fast (~0.8s) and a tap anywhere skips straight to it —
+// first-session players are the most impatient, so nothing gates the first tap.
 export default function Splash({ onPlay }: { onPlay: () => void }) {
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setRevealed(true), 3000);
+    const t = setTimeout(() => setRevealed(true), 800);
     return () => clearTimeout(t);
   }, []);
 
+  const onBackdrop = () => {
+    if (revealed) onPlay();
+    else setRevealed(true);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-gray-100 overflow-hidden font-mono select-none">
+    <div className="fixed inset-0 z-50 bg-gray-100 overflow-hidden font-mono select-none cursor-pointer" onClick={onBackdrop}>
       <video
         src="/splash.mp4"
         autoPlay
@@ -56,7 +62,10 @@ export default function Splash({ onPlay }: { onPlay: () => void }) {
             <h1 className="text-5xl sm:text-7xl font-black uppercase tracking-tighter leading-none">Brutal</h1>
           </div>
           <button
-            onClick={onPlay}
+            onClick={e => {
+              e.stopPropagation();
+              onPlay();
+            }}
             className="fx-reveal-btn border-4 border-black bg-yellow-400 hover:bg-yellow-300 text-black px-10 py-3 sm:px-14 sm:py-4 text-2xl sm:text-3xl font-black uppercase tracking-widest shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-y-2 active:translate-x-2 transition-all cursor-pointer"
           >
             Play

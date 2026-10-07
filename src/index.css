@@ -274,6 +274,21 @@ body {
   animation: danger-ring 720ms steps(2, end) infinite;
 }
 
+/* Tutorial / first-session hint: a hard yellow ring pulses on the cell the
+   player should tap to complete a merge. Stepped, on-brand, impossible to miss. */
+@keyframes tut-hint {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px #facc15, 0 0 0 2px #000;
+  }
+  50% {
+    box-shadow: inset 0 0 0 5px #facc15, 0 0 0 3px #000;
+  }
+}
+.tut-hint {
+  animation: tut-hint 640ms steps(2, end) infinite;
+}
+
 /* DEAD overlay: hard stepped opacity cut, no cinematic fade. */
 @keyframes fx-dead {
   from {
@@ -351,9 +366,15 @@ body {
   .fx-reveal-btn,
   .fx-veil,
   .danger-ring,
+  .tut-hint,
   .animate-shake,
   .animate-shake-soft {
     animation: none;
+  }
+
+  /* Keep the hint visible as a static ring, just not pulsing. */
+  .tut-hint {
+    box-shadow: inset 0 0 0 4px #facc15, 0 0 0 2px #000;
   }
 
   /* Keep the veil's end state: blur isn't motion. */

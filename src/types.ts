@@ -16,7 +16,16 @@ export const TIER_COLORS: Record<number, string> = {
   9: 'bg-black text-white border-white',
 };
 
+// The live palette. Themes swap this map in via setActiveTierColors; getTierStyle
+// reads it, so a theme change repaints every tile on the next render with no
+// call-site changes. Starts as the default brutalist palette above.
+let activeTierColors: Record<number, string> = TIER_COLORS;
+
+export const setActiveTierColors = (colors: Record<number, string>): void => {
+  activeTierColors = colors;
+};
+
 export const getTierStyle = (tier: number | null): string => {
   if (tier === null) return 'bg-transparent';
-  return TIER_COLORS[tier] || 'bg-black text-white';
+  return activeTierColors[tier] || 'bg-black text-white';
 };
