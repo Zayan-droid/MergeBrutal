@@ -38,6 +38,7 @@ export interface RunConfig {
   timed?: number; // time attack: seconds on the clock
   initialGrid?: GridData; // tutorial: pre-seeded board
   initialNext?: number; // tutorial: forced first NEXT tile
+  practice?: boolean; // tutorial: don't let scores touch the saved best
 }
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -86,6 +87,7 @@ export const useGame = () => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rngRef = useRef<Rand>(Math.random);
   const modeRef = useRef<Mode>('endless');
+  const practiceRef = useRef(false);
   const lastConfigRef = useRef<RunConfig>({ mode: 'endless' });
 
   // Authoritative run counters live in refs so finishRun (which may fire from the
@@ -108,9 +110,10 @@ export const useGame = () => {
 
   // Track the best score live so the header updates the moment it's beaten, and
   // persist it immediately so a huge run isn't lost if the player leaves without
-  // dying (recordRun also saves it on game over).
+  // dying (recordRun also saves it on game over). Practice (tutorial) runs are
+  // excluded so they never inflate a real player's best.
   useEffect(() => {
-    if (score > best) {
+    if (!practiceRef.current && score > best) {
       setBest(score);
       setNewBest(true);
       persistBest(score);
@@ -179,6 +182,7 @@ export const useGame = () => {
       const r = cfg.rows ?? ROWS;
       const c = cfg.cols ?? COLS;
       modeRef.current = cfg.mode;
+      practiceRef.current = !!cfg.practice;
       rngRef.current = cfg.seed ? seededRand(cfg.seed) : Math.random;
 
       const grid0 = cfg.initialGrid ? cfg.initialGrid.map(row => [...row]) : createEmptyGrid(r, c);
@@ -345,6 +349,7 @@ export const useGame = () => {
     summary,
     timeLeft,
     runIndex,
+    isProcessing,
     shake,
     danger,
     fx,

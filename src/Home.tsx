@@ -22,6 +22,7 @@ export interface HomeProps {
   onStats: () => void;
   onThemes: () => void;
   onToggleSound: () => void;
+  onTutorial: () => void;
 }
 
 const SIZES = [4, 6, 8];
@@ -121,6 +122,14 @@ export default function Home(p: HomeProps) {
             Sound: {p.soundOn ? 'On' : 'Off'}
           </BrutalButton>
         </div>
+
+        <BrutalButton
+          variant="white"
+          onClick={p.onTutorial}
+          className="w-full mt-2 sm:mt-3 px-3 py-2.5 text-xs sm:text-base"
+        >
+          How to Play
+        </BrutalButton>
       </div>
     </div>
   );

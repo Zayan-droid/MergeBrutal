@@ -34,8 +34,8 @@ import { THEMES, applyTheme, applySavedTheme } from './themes';
 import { goalForRun } from './goals';
 import { shareResult } from './share';
 import { todayKey } from './rng';
-import { findMergeHint } from './gameLogic';
-import { buildTutorialGrid, TUTORIAL_TARGET, TUTORIAL_NEXT } from './tutorialBoard';
+import { findMergeHint, createEmptyGrid } from './gameLogic';
+import { SCENES } from './tutorialScript';
 
 const Tile = ({ value }: { value: CellValue }) => {
   const isFilled = value !== null;
@@ -89,14 +89,16 @@ export default function App() {
   const game = useGame();
   const {
     rows, cols, mode, grid, score, best, newBest, highestTier, nextTile,
-    merges, bestChain, gameOver, summary, timeLeft, runIndex,
+    merges, bestChain, gameOver, summary, timeLeft, runIndex, isProcessing,
     shake, danger, fx, drawId, paused, togglePause, placeTile, startRun, restartGame,
   } = game;
 
   const [screen, setScreen] = useState<Screen>('splash');
   const [soundOn, setSoundOn] = useState(sfx.isEnabled());
   const [boardSize, setBoardSize] = useState(6);
-  const [tutorialStep, setTutorialStep] = useState<0 | 1 | null>(null);
+  const [tut, setTut] = useState<{ index: number; phase: 'intro' | 'outro' } | null>(null);
+  const actBaseline = useRef<{ filled: number; merges: number }>({ filled: 0, merges: 0 });
+  const acted = useRef(false);
   const [themeId, setThemeId] = useState('brutal');
   const [streak, setStreak] = useState<Streak>(() => liveStreak());
   const [daily, setDaily] = useState<DailyResult | null>(() => getDaily());
@@ -113,17 +115,44 @@ export default function App() {
   }, []);
 
   // --- Run launchers ---------------------------------------------------------
-  const play = () => { setTutorialStep(null); startRun({ mode: 'endless', rows: boardSize, cols: boardSize }); setScreen('game'); };
-  const playDaily = () => { setTutorialStep(null); startRun({ mode: 'daily', seed: todayKey(), rows: 6, cols: 6 }); setScreen('game'); };
-  const playTimeAttack = () => { setTutorialStep(null); startRun({ mode: 'timeattack', timed: 90, rows: boardSize, cols: boardSize }); setScreen('game'); };
-  const playZen = () => { setTutorialStep(null); startRun({ mode: 'zen', rows: boardSize, cols: boardSize }); setScreen('game'); };
+  const play = () => { setTut(null); startRun({ mode: 'endless', rows: boardSize, cols: boardSize }); setScreen('game'); };
+  const playDaily = () => { setTut(null); startRun({ mode: 'daily', seed: todayKey(), rows: 6, cols: 6 }); setScreen('game'); };
+  const playTimeAttack = () => { setTut(null); startRun({ mode: 'timeattack', timed: 90, rows: boardSize, cols: boardSize }); setScreen('game'); };
+  const playZen = () => { setTut(null); startRun({ mode: 'zen', rows: boardSize, cols: boardSize }); setScreen('game'); };
+
+  // --- Guided tutorial -------------------------------------------------------
+  // Each scene either sets up a rigged board (act) or just shows a card (talk).
+  const enterScene = (index: number) => {
+    const scene = SCENES[index];
+    if (scene.kind === 'act' && scene.grid) {
+      startRun({ mode: 'endless', rows: 6, cols: 6, initialGrid: scene.grid, initialNext: scene.next ?? 1, practice: true });
+    }
+    acted.current = false;
+    setTut({ index, phase: 'intro' });
+  };
+
   const playTutorial = () => {
-    setTutorialStep(0);
-    startRun({ mode: 'endless', rows: 6, cols: 6, initialGrid: buildTutorialGrid(), initialNext: TUTORIAL_NEXT });
+    startRun({ mode: 'endless', rows: 6, cols: 6, initialGrid: createEmptyGrid(6, 6), initialNext: 1, practice: true });
     setScreen('game');
+    acted.current = false;
+    setTut({ index: 0, phase: 'intro' });
+  };
+
+  const advanceTut = () => {
+    if (!tut) return;
+    const next = tut.index + 1;
+    if (next >= SCENES.length) finishTutorial();
+    else enterScene(next);
+  };
+
+  const finishTutorial = () => {
+    markTutorialSeen();
+    setTut(null);
+    startRun({ mode: 'endless', rows: boardSize, cols: boardSize });
   };
 
   const goHome = () => {
+    setTut(null);
     setStreak(liveStreak());
     setDaily(getDaily());
     setScreen('home');
@@ -149,15 +178,19 @@ export default function App() {
     setThemeId(id);
   };
 
-  // --- Tutorial progression --------------------------------------------------
+  // Advance an "act" scene once the player's move has actually resolved.
   useEffect(() => {
-    if (tutorialStep === 0 && merges > 0) setTutorialStep(1);
-  }, [tutorialStep, merges]);
-
-  const finishTutorial = () => {
-    markTutorialSeen();
-    setTutorialStep(null);
-  };
+    if (!tut || !acted.current) return;
+    const scene = SCENES[tut.index];
+    if (scene.kind !== 'act' || tut.phase !== 'intro' || isProcessing) return;
+    const filled = grid.reduce((a, row) => a + row.reduce((b, c) => b + (c !== null ? 1 : 0), 0), 0);
+    const progressed =
+      scene.expect === 'merge' ? merges > actBaseline.current.merges : filled > actBaseline.current.filled;
+    if (progressed) {
+      acted.current = false;
+      setTut(t => (t ? { ...t, phase: 'outro' } : t));
+    }
+  }, [tut, isProcessing, merges, grid]);
 
   // --- Meta-progression on death --------------------------------------------
   useEffect(() => {
@@ -198,24 +231,35 @@ export default function App() {
     }
   }, [summary]);
 
-  // Esc pauses only while in a live game.
+  // Esc pauses only while in a live game (never mid-tutorial).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && screen === 'game' && !gameOver && !tutorialStep) togglePause();
+      if (e.key === 'Escape' && screen === 'game' && !gameOver && !tut) togglePause();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [screen, gameOver, tutorialStep, togglePause]);
+  }, [screen, gameOver, tut, togglePause]);
 
   // --- Derived view state ----------------------------------------------------
   const filledCount = useMemo(
     () => grid.reduce((a, row) => a + row.reduce((b, c) => b + (c !== null ? 1 : 0), 0), 0),
     [grid],
   );
-  // First-session "aha": if a new player hasn't merged yet, glow a completing cell.
-  const ahaActive = tutorialStep === null && !gameOver && merges === 0 && filledCount >= 5;
-  const hint = tutorialStep === 0 ? TUTORIAL_TARGET : ahaActive ? findMergeHint(grid, nextTile) : null;
-  const hintKey = hint ? `${hint.r},${hint.c}` : null;
+
+  const tutActive = tut !== null;
+  const tutScene = tut ? SCENES[tut.index] : null;
+  // The one cell the pointing hand + ring sit on during an "act" step.
+  const tutTargetKey =
+    tut && tut.phase === 'intro' && tutScene?.kind === 'act' && tutScene.target
+      ? `${tutScene.target.r},${tutScene.target.c}`
+      : null;
+
+  // First-session "aha" (outside the tutorial): if a new player hasn't merged
+  // yet, softly glow a completing cell.
+  const ahaActive = !tutActive && !gameOver && merges === 0 && filledCount >= 5;
+  const ahaHint = ahaActive ? findMergeHint(grid, nextTile) : null;
+  const hintKey = tutTargetKey ?? (ahaHint ? `${ahaHint.r},${ahaHint.c}` : null);
+  const handKey = tutTargetKey; // the hand only appears during the tutorial
 
   const goal = goalForRun(runIndex);
   const goalProgress = goal.progress({ score, highestTier, bestChain, merges });
@@ -223,10 +267,16 @@ export default function App() {
   const goalPct = Math.min(100, Math.round((goalProgress / goal.target) * 100));
 
   const onCell = (r: number, c: number) => {
-    if (tutorialStep === 1) return; // board locked behind the explainer
-    if (tutorialStep === 0) {
-      if (r === TUTORIAL_TARGET.r && c === TUTORIAL_TARGET.c) placeTile(r, c);
-      else sfx.invalid();
+    if (tut) {
+      const scene = SCENES[tut.index];
+      if (tut.phase !== 'intro' || scene.kind !== 'act' || !scene.target) return; // locked during cards
+      if (r === scene.target.r && c === scene.target.c) {
+        actBaseline.current = { filled: filledCount, merges };
+        acted.current = true;
+        placeTile(r, c);
+      } else {
+        sfx.invalid();
+      }
       return;
     }
     placeTile(r, c);
@@ -265,6 +315,7 @@ export default function App() {
           onStats={() => setModal('stats')}
           onThemes={() => setModal('themes')}
           onToggleSound={toggleSound}
+          onTutorial={playTutorial}
         />
         {modal === 'awards' && <AchievementsModal unlocked={unlocked} onClose={() => setModal(null)} />}
         {modal === 'stats' && <StatsModal stats={getStats()} streak={streak} onClose={() => setModal(null)} />}
@@ -286,24 +337,26 @@ export default function App() {
               <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Merge</h1>
               <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter">Brutal</h1>
               <p className="mt-1.5 text-[9px] sm:text-xs font-bold uppercase tracking-[0.3em] text-black/55">
-                {mode === 'daily' ? `Daily · ${todayKey()}` : mode === 'timeattack' ? 'Time Attack' : mode === 'zen' ? 'Zen' : `${rows}×${cols} · Collapse`}
+                {tutActive ? 'Tutorial' : mode === 'daily' ? `Daily · ${todayKey()}` : mode === 'timeattack' ? 'Time Attack' : mode === 'zen' ? 'Zen' : `${rows}×${cols} · Collapse`}
               </p>
             </div>
-            <div className="flex gap-2 shrink-0">
-              {streak.count > 0 && (
-                <div className="hidden sm:flex flex-col items-center justify-center border-4 border-black bg-yellow-400 px-3 text-black" title={`${streak.count}-day streak`}>
-                  <span className="text-xl font-black leading-none">🔥{streak.count}</span>
-                </div>
-              )}
-              <button
-                onClick={togglePause}
-                aria-label="Pause"
-                title="Pause (Esc)"
-                className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center border-2 sm:border-4 border-black text-lg sm:text-2xl font-black bg-white hover:bg-gray-200 active:bg-yellow-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all tracking-tighter"
-              >
-                II
-              </button>
-            </div>
+            {!tutActive && (
+              <div className="flex gap-2 shrink-0">
+                {streak.count > 0 && (
+                  <div className="hidden sm:flex flex-col items-center justify-center border-4 border-black bg-yellow-400 px-3 text-black" title={`${streak.count}-day streak`}>
+                    <span className="text-xl font-black leading-none">🔥{streak.count}</span>
+                  </div>
+                )}
+                <button
+                  onClick={togglePause}
+                  aria-label="Pause"
+                  title="Pause (Esc)"
+                  className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center border-2 sm:border-4 border-black text-lg sm:text-2xl font-black bg-white hover:bg-gray-200 active:bg-yellow-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] sm:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all tracking-tighter"
+                >
+                  II
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
@@ -336,24 +389,26 @@ export default function App() {
             </Plaque>
           </div>
 
-          {/* Session goal */}
-          <div className="mt-3 border-2 sm:border-4 border-black flex items-stretch overflow-hidden">
-            <div className="bg-black text-white text-[10px] sm:text-xs font-black uppercase tracking-wider px-2 flex items-center">
-              Goal
-            </div>
-            <div className="relative flex-1 bg-white">
-              <div
-                className={`absolute inset-y-0 left-0 ${goalDone ? 'bg-green-500' : 'bg-yellow-400'} transition-[width] duration-200`}
-                style={{ width: `${goalPct}%` }}
-              />
-              <div className="relative px-2 py-1 flex items-center justify-between">
-                <span className="font-black uppercase text-[11px] sm:text-sm tracking-tight">{goal.label}</span>
-                <span className="font-black tabular-nums text-[11px] sm:text-sm">
-                  {goalDone ? '✓ DONE' : `${Math.min(Math.floor(goalProgress), goal.target)}/${goal.target}`}
-                </span>
+          {/* Session goal (hidden during the tutorial) */}
+          {!tutActive && (
+            <div className="mt-3 border-2 sm:border-4 border-black flex items-stretch overflow-hidden">
+              <div className="bg-black text-white text-[10px] sm:text-xs font-black uppercase tracking-wider px-2 flex items-center">
+                Goal
+              </div>
+              <div className="relative flex-1 bg-white">
+                <div
+                  className={`absolute inset-y-0 left-0 ${goalDone ? 'bg-green-500' : 'bg-yellow-400'} transition-[width] duration-200`}
+                  style={{ width: `${goalPct}%` }}
+                />
+                <div className="relative px-2 py-1 flex items-center justify-between">
+                  <span className="font-black uppercase text-[11px] sm:text-sm tracking-tight">{goal.label}</span>
+                  <span className="font-black tabular-nums text-[11px] sm:text-sm">
+                    {goalDone ? '✓ DONE' : `${Math.min(Math.floor(goalProgress), goal.target)}/${goal.target}`}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Game Grid */}
@@ -372,6 +427,7 @@ export default function App() {
                   const anim = cellFx(fx, key);
                   const punch = anim.combo !== undefined ? Math.min(1.06 + 0.02 * anim.combo, 1.14) : undefined;
                   const isHint = hintKey === key && cell === null;
+                  const isHand = handKey === key && cell === null;
                   return (
                     <div key={`${r}-${c}`} className="relative" onClick={() => onCell(r, c)}>
                       <div
@@ -381,6 +437,11 @@ export default function App() {
                       >
                         <Tile value={cell} />
                       </div>
+                      {isHand && (
+                        <span className="tut-hand" aria-hidden="true">
+                          👆
+                        </span>
+                      )}
                       {anim.combo !== undefined && anim.combo >= 2 && (
                         <span
                           key={`chip-${anim.k}`}
@@ -420,18 +481,29 @@ export default function App() {
           </div>
         )}
 
-        {/* Footer / Controls */}
-        <div className="flex justify-center gap-3">
-          <BrutalButton variant="white" onClick={goHome} className="px-5 py-2.5 text-base sm:text-xl">
-            Menu
-          </BrutalButton>
-          <BrutalButton variant="yellow" onClick={restartGame} className="px-6 py-2.5 text-lg sm:text-2xl">
-            Restart
-          </BrutalButton>
-        </div>
+        {/* Footer / Controls (hidden during the tutorial) */}
+        {!tutActive && (
+          <div className="flex justify-center gap-3">
+            <BrutalButton variant="white" onClick={goHome} className="px-5 py-2.5 text-base sm:text-xl">
+              Menu
+            </BrutalButton>
+            <BrutalButton variant="yellow" onClick={restartGame} className="px-6 py-2.5 text-lg sm:text-2xl">
+              Restart
+            </BrutalButton>
+          </div>
+        )}
 
-        {/* Tutorial coach */}
-        {tutorialStep !== null && <Tutorial step={tutorialStep} onDone={finishTutorial} />}
+        {/* Guided tutorial */}
+        {tut && (
+          <Tutorial
+            scene={SCENES[tut.index]}
+            phase={tut.phase}
+            index={tut.index}
+            total={SCENES.length}
+            onContinue={advanceTut}
+            onSkip={finishTutorial}
+          />
+        )}
 
         {/* Pause Menu Overlay */}
         {paused && !gameOver && (

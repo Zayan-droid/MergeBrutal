@@ -289,6 +289,29 @@ body {
   animation: tut-hint 640ms steps(2, end) infinite;
 }
 
+/* Tutorial pointing hand: a finger that taps the target cell. Sits over the
+   lower half of the cell and bobs; pointer-events off so taps reach the cell. */
+@keyframes tut-hand {
+  0%,
+  100% {
+    transform: translate(-50%, 0) rotate(-6deg);
+  }
+  50% {
+    transform: translate(-50%, -10px) rotate(-6deg);
+  }
+}
+.tut-hand {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: 40;
+  font-size: clamp(1.9rem, 8vw, 3rem);
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.9));
+  animation: tut-hand 820ms steps(2, end) infinite;
+}
+
 /* DEAD overlay: hard stepped opacity cut, no cinematic fade. */
 @keyframes fx-dead {
   from {
@@ -367,6 +390,7 @@ body {
   .fx-veil,
   .danger-ring,
   .tut-hint,
+  .tut-hand,
   .animate-shake,
   .animate-shake-soft {
     animation: none;
@@ -375,6 +399,11 @@ body {
   /* Keep the hint visible as a static ring, just not pulsing. */
   .tut-hint {
     box-shadow: inset 0 0 0 4px #facc15, 0 0 0 2px #000;
+  }
+
+  /* Keep the hand pinned (no bob) but still pointing. */
+  .tut-hand {
+    transform: translate(-50%, 0) rotate(-6deg);
   }
 
   /* Keep the veil's end state: blur isn't motion. */
